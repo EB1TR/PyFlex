@@ -1,46 +1,34 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# pylint: disable=locally-disabled, multiple-statements
-# pylint: disable=fixme, line-too-long, invalid-name
-# pylint: disable=W0703
+
+# pylint: disable=W0102,E0712,C0103,R0903
+
+""" PyFlex - VITA 49 decoder """
+
+__author__ = "Fabian Malnero"
+__copyright__ = "Copyright 2025, Fabian Malnero"
+__license__ = "MIT"
+__updated__ = "2025-06-18 23:19:54"
 
 
-import sys
-from os import environ, path
-from environs import Env
+from os import environ
+from dotenv import load_dotenv, find_dotenv
 
 
-ENV_FILE = path.join(path.abspath(path.dirname(__file__)), '.env')
-
-try:
-    ENVIR = Env()
-    ENVIR.read_env()
-except Exception as e:
-    print('Error: .env file not found: %s' % e)
-    sys.exit(1)
+load_dotenv(find_dotenv())
 
 
 class Config:
     """
-    This is the generic loader that sets common attributes
-
-    :param: None
-    :return: None
+    This is the generic loader that sets common values in the absence of an .env file or environment variables.
     """
-    if environ.get('UDPPORT'):
-        UDPPORT = ENVIR('UDPPORT')
 
-    if environ.get('FLEXIP'):
-        FLEXIP = ENVIR('FLEXIP')
+    # -- FlexRadio radio settings
+    UDPPORT = environ.get('UDPPORT', "60000")
+    FLEXIP = environ.get('FLEXIP', "127.0.0.1")
+    FLEXPORT = environ.get('FLEXPORT', "5000")
+    STN = environ.get('STN', "0")
 
-    if environ.get('FLEXPORT'):
-        FLEXPORT = ENVIR('FLEXPORT')
-
-    if environ.get('STN'):
-        STN = ENVIR('STN')
-
-    if environ.get('MQTT_HOST'):
-        MQTT_HOST = ENVIR('MQTT_HOST')
-
-    if environ.get('MQTT_PORT'):
-        MQTT_PORT = ENVIR('MQTT_PORT')
-
+    # -- MQTT Server
+    MQTT_HOST = environ.get('MQTT_HOST', "localhost")
+    MQTT_PORT = environ.get('MQTT_PORT', "1883")

@@ -1,10 +1,17 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# pylint: disable=locally-disabled, multiple-statements
-# pylint: disable=fixme, line-too-long, invalid-name
-# pylint: disable=W0703
+
+# pylint: disable=W0102,E0712,C0103,R0903
+
+""" PyFlex - VITA 49 decoder """
+
+__author__ = "Fabian Malnero"
+__copyright__ = "Copyright 2025, Fabian Malnero"
+__license__ = "MIT"
+__updated__ = "2025-06-18 23:21:51"
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Python imports
+# General imports
 # ----------------------------------------------------------------------------------------------------------------------
 import socket
 import threading
@@ -16,7 +23,7 @@ import sys
 import os
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Installed imports
+# Third-party imports
 # ----------------------------------------------------------------------------------------------------------------------
 import paho.mqtt.client as mqtt
 
@@ -28,15 +35,16 @@ import settings
 # ----------------------------------------------------------------------------------------------------------------------
 # Settings
 # ----------------------------------------------------------------------------------------------------------------------
+# -- Radio settings
 UDP_IP = "0.0.0.0"
 UDP_PORT = int(settings.Config.UDPPORT)
 TELNET_HOST = settings.Config.FLEXIP
 TELNET_PORT = int(settings.Config.FLEXPORT)
 STN = settings.Config.STN
+# -- MQTT settings
 MQTT_BROKER = settings.Config.MQTT_HOST
 MQTT_PORT = int(settings.Config.MQTT_PORT)
-
-
+# -- Timers and internal radio settings
 TELNET_TIMEOUT = 10
 UDP_TIMEOUT_SECONDS = 20
 ACTIVE_SLICE = 0
@@ -57,7 +65,7 @@ SUBSCRIBE_MESSAGES = [
 # ----------------------------------------------------------------------------------------------------------------------
 # MQTT client
 # ----------------------------------------------------------------------------------------------------------------------
-mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, clean_session=True)
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, clean_session=True)  # noqa
 mqtt_client.connect(f'{MQTT_BROKER}', MQTT_PORT, 60)
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -141,20 +149,33 @@ def udp_listener():
     """
     UDP socket: to receive radio stream data
     """
-    global last_udp_time
-
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
 
     while True:
         data, addr = sock.recvfrom(4096)
-        last_udp_time = time.time()
+        update_udp_timestamp()
         info = process_vita49(data)
+        print(f"[Debug] {info}")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Control UDP activity
 # ----------------------------------------------------------------------------------------------------------------------
-last_udp_time = time.time()
+def create_udp_monitor():
+    timestamp = {"last_update": time.time()}
+
+    def update_timestamp():
+        timestamp["last_update"] = time.time()
+
+    def get_inactive_time():
+        return time.time() - timestamp["last_update"]
+
+    return update_timestamp, get_inactive_time
+
+
+# Create the monitor functions
+update_udp_timestamp, get_udp_inactive_time = create_udp_monitor()
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # UDP activity monitor
@@ -163,16 +184,16 @@ def udp_activity_monitor():
     """
     Check UDP data: activity in UDP socket
     """
-
-    global last_udp_time
-
     while True:
         time.sleep(5)
-        inactive = time.time() - last_udp_time
+        inactive = get_udp_inactive_time()
 
         if inactive > UDP_TIMEOUT_SECONDS:
             print(f"[UDP] No data in {UDP_TIMEOUT_SECONDS} seconds. Restarting connection...")
             os.execv(sys.executable, ['python'] + sys.argv)
+
+        else:
+            print(f"[UDP] Inactivity: {inactive} seconds")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Process VITA 49
@@ -187,6 +208,14 @@ def process_vita49(data):
     try:
         (packet_type, timestamp_type,
          length, stream_id, class_id, timestamp_int, timestamp_frac) = struct.unpack(header_format, data[0:header_size])
+
+        print(f"[Debug] Packet type: {packet_type}")
+        print(f"[Debug] Timestamp type: {timestamp_type}")
+        print(f"[Debug] Length: {length}")
+        print(f"[Debug] Stream ID: {stream_id}")
+        print(f"[Debug] Class ID: {class_id}")
+        print(f"[Debug] Timestamp int: {timestamp_int}")
+        print(f"[Debug] Timestamp frac: {timestamp_frac}")
 
         payload = data[header_size:]
         meter_data = {}
@@ -212,7 +241,9 @@ def process_vita49(data):
         return output.strip()
 
     except struct.error as e:
-        return f"[UDP] [ERROR]: {e}"
+        return f"[UDP] [STRUCT_ERROR]: {e}"
+    except Exception as e:
+        return f"[UDP] [CATCHALL_ERROR]: {e}"
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Convert frequency to band
@@ -240,9 +271,9 @@ def obtain_band(frequency):
     return 0
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Threads init
+# Threads init with main loop
 # ----------------------------------------------------------------------------------------------------------------------
-if __name__ == "__main__":
+def main():
     thread_udp = threading.Thread(target=udp_listener, daemon=True)
     thread_telnet = threading.Thread(target=telnet_listener, daemon=True)
     thread_watchdog = threading.Thread(target=udp_activity_monitor, daemon=True)
@@ -256,5 +287,13 @@ if __name__ == "__main__":
             time.sleep(1)
     except KeyboardInterrupt:
         print("[MAIN] Closing program...")
+        mqtt_client.disconnect()
+        sys.exit(0)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Program main
+# ----------------------------------------------------------------------------------------------------------------------
+if __name__ == "__main__":
+    main()
 
 

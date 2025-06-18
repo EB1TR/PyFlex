@@ -1,0 +1,74 @@
+#
+# PRE-COMMIT
+# Bare minimal configuration for safety developer practice
+#
+# For this config to work well it is necessary to install locally in the
+# Python project the package `mypy`, i.e. using Poetry, with the following
+# command line:
+#
+#  $ poetry add --group dev mypy
+#
+#
+
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+        args: [--unsafe]
+
+
+- repo: https://github.com/gitleaks/gitleaks
+  rev: v8.27.2
+  hooks:
+    - id: gitleaks
+
+
+#
+# PYTHON LINTING, FORMATTING AND TYPE CHECKING
+#
+- repo: https://github.com/pycqa/pylint
+  rev: v3.3.7
+  hooks:
+    - id: pylint
+      # args: [src, --disable=import-error, --max-line-length=120, --errors-only]
+      args: [src, --disable=import-error, --max-line-length=120]
+      exclude: ^tests/.*$
+
+
+- repo: local
+  # We do not use pre-commit/mirrors-mypy, as it comes with opinionated defaults
+  # (like --ignore-missing-imports) and is difficult to configure correctly to
+  # run with the dependencies properly installed.
+  hooks:
+    - id: mypy
+      name: mypy
+      entry: mypy --ignore-missing-imports --show-error-codes
+      language: python
+      additional_dependencies: ["mypy==1.16.1"]
+      types: [python]
+      # use require_serial so that script is only called once per commit
+      # and print the number of files as a sanity-check
+      require_serial: true
+      verbose: true
+
+
+- repo: https://github.com/asottile/reorder-python-imports
+  # We reorder imports based on the logic of its origin
+  rev: v3.15.0
+  hooks:
+    - id: reorder-python-imports
+
+
+- repo: https://github.com/psf/black
+  # Black is the Python code formatter. By using it we obtain code speed, determinism
+  # and freedom from pycodestyle (formerly PEP8) nagging about formatting.
+  rev: 25.1.0
+  hooks:
+    - id: black
+      types: [python]
+      args: [--safe, --quiet]
+      # args: [--check]
+      exclude: ^tests/.*$
