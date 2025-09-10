@@ -63,7 +63,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
     else:
         print(f"Fallo al conectar, código: {reason_code}")
 
-def on_disconnect(client, userdata, reason_code, properties=None):
+def on_disconnect(client, userdata, reason_code, properties=None, info):
     print(f"Desconectado (código: {reason_code}), intentando reconectar...")
 
 
