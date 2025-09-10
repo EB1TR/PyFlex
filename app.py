@@ -59,7 +59,7 @@ SUBSCRIBE_MESSAGES = [
 # ----------------------------------------------------------------------------------------------------------------------
 def on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
-        print(f'Conectado al broker {MQTT_BROKER} por el puerto {MQTT_PORTs}')
+        print(f'Conectado al broker {MQTT_BROKER} por el puerto {MQTT_PORT}')
     else:
         print(f"Fallo al conectar, código: {reason_code}")
 
