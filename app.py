@@ -57,9 +57,23 @@ SUBSCRIBE_MESSAGES = [
 # ----------------------------------------------------------------------------------------------------------------------
 # MQTT client
 # ----------------------------------------------------------------------------------------------------------------------
-mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, clean_session=True)
-mqtt_client.connect(f'{MQTT_BROKER}', MQTT_PORT, 60)
+def on_connect(client, userdata, flags, reason_code, properties=None):
+    if reason_code == 0:
+        print(f'Conectado al broker {MQTT_BROKER} por el puerto {MQTT_PORTs}')
+    else:
+        print(f"Fallo al conectar, código: {reason_code}")
 
+def on_disconnect(client, userdata, reason_code, properties=None):
+    print(f"Desconectado (código: {reason_code}), intentando reconectar...")
+
+
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, clean_session=True)
+
+mqtt_client.on_connect = on_connect
+mqtt_client.on_disconnect = on_disconnect
+
+mqtt_client.connect_async(MQTT_BROKER, MQTT_PORT, 60)
+mqtt_client.loop_start()
 # ----------------------------------------------------------------------------------------------------------------------
 # TELNET client
 # ----------------------------------------------------------------------------------------------------------------------
